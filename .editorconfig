@@ -11,6 +11,9 @@ trim_trailing_whitespace = true
 [*.{json,jsonnet,libsonnet,yml,yaml}]
 indent_size = 2
 
+[*.tf]
+indent_size = 2
+
 [*.tsv]
 indent_style = tab
 
