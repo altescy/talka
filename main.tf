@@ -3,6 +3,12 @@ locals {
     lambda_talka_function_name = "talka"
     lambda_talka_iam_role_name = "talka_lambda_role"
     apigateway_name = "talka_api"
+    ssmparameter_slack_bot_token_name = "/talka/SLACK_BOT_TOKEN"
+    ssmparameter_slack_signing_secret_name = "/talka/SLACK_SIGNING_SECRET"
+}
+
+provider "aws" {
+    region = "ap-northeast-1"
 }
 
 ##
@@ -52,6 +58,18 @@ resource "aws_iam_policy" "cw_policy" {
 }
 
 ##
+## Parameter Store
+##
+
+data "aws_ssm_parameter" "slack_bot_token" {
+  name = local.ssmparameter_slack_bot_token_name
+}
+
+data "aws_ssm_parameter" "slack_signing_secret" {
+  name = local.ssmparameter_slack_signing_secret_name
+}
+
+##
 ##  Lambda
 ##
 
@@ -88,6 +106,12 @@ resource "aws_lambda_function" "talka" {
   image_uri     = "${aws_ecr_repository.talka.repository_url}:latest"
   role          = aws_iam_role.lambda_role.arn
   publish       = true
+  environment {
+    variables = {
+      SLACK_SIGNING_SECRET = data.aws_ssm_parameter.slack_signing_secret.value
+      SLACK_BOT_TOKEN = data.aws_ssm_parameter.slack_bot_token.value
+    }
+  }
 }
 
 ##
