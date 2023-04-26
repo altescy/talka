@@ -24,7 +24,7 @@ data "aws_ecr_authorization_token" "token" {}
 resource "null_resource" "ecr_image" {
   provisioner "local-exec" {
     command = <<-EOF
-      docker build ../ -t ${aws_ecr_repository.talka.repository_url}:latest; \
+      docker build . -t ${aws_ecr_repository.talka.repository_url}:latest; \
       docker login -u AWS -p ${data.aws_ecr_authorization_token.token.password} ${data.aws_ecr_authorization_token.token.proxy_endpoint}; \
       docker push ${aws_ecr_repository.talka.repository_url}:latest
     EOF
@@ -129,8 +129,8 @@ data "aws_iam_policy_document" "apigateway_assume_policy" {
     }
 }
 
-resource "aws_iam_role" "ipagateway_role" {
-  name               = "ipagateway_role"
+resource "aws_iam_role" "apigateway_role" {
+  name               = "apigateway_role"
   assume_role_policy = data.aws_iam_policy_document.apigateway_assume_policy.json
 }
 
@@ -146,6 +146,44 @@ resource "aws_api_gateway_method" "api_for_slack_method" {
     api_key_required = false
 }
 
+resource "aws_api_gateway_integration" "api_for_slack_integration" {
+    rest_api_id = aws_api_gateway_rest_api.api_for_slack.id
+    resource_id = aws_api_gateway_resource.api_for_slack_resource.id
+    http_method = aws_api_gateway_method.api_for_slack_method.http_method
+    integration_http_method = "ANY"
+    type = "AWS_PROXY"
+    uri = aws_lambda_function.talka.invoke_arn
+}
+
+resource "aws_api_gateway_deployment" "api_for_slack_deployment" {
+    rest_api_id = aws_api_gateway_rest_api.api_for_slack.id
+    lifecycle {
+    create_before_destroy = true
+    }
+    depends_on = [
+        aws_api_gateway_integration.api_for_slack_integration
+    ]
+}
+
+resource "aws_api_gateway_stage" "api_for_slack_stage" {
+    rest_api_id = aws_api_gateway_rest_api.api_for_slack.id
+    deployment_id = aws_api_gateway_deployment.api_for_slack_deployment.id
+    stage_name = "developer"
+}
+
+resource "aws_api_gateway_method_settings" "api_for_slack_setting" {
+    rest_api_id = aws_api_gateway_rest_api.api_for_slack.id
+    stage_name = aws_api_gateway_stage.api_for_slack_stage.stage_name
+    method_path = "*/*"
+    settings {
+        metrics_enabled = true
+        logging_level   = "INFO"
+    }
+    depends_on = [
+        aws_api_gateway_account.api_for_slack_account
+    ]
+}
+
 resource "aws_api_gateway_resource" "api_for_slack_resource" {
     rest_api_id = aws_api_gateway_rest_api.api_for_slack.id
     parent_id   = aws_api_gateway_rest_api.api_for_slack.root_resource_id
@@ -156,7 +194,7 @@ resource "aws_iam_policy_attachment" "apigateway_policy_attache" {
     name       = "apigateway_policy_attache"
     policy_arn = aws_iam_policy.cw_policy.arn
     roles = [
-      aws_iam_role.ipagateway_role.name
+      aws_iam_role.apigateway_role.name
     ]
 }
 
@@ -169,5 +207,5 @@ resource "aws_lambda_permission" "allow_apigateway" {
 }
 
 resource "aws_api_gateway_account" "api_for_slack_account" {
-  cloudwatch_role_arn = aws_iam_role.ipagateway_role.arn
+  cloudwatch_role_arn = aws_iam_role.apigateway_role.arn
 }
