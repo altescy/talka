@@ -72,10 +72,10 @@ resource "aws_iam_role" "lambda_role" {
 }
 
 resource "aws_iam_policy_attachment" "lambda_policy_attache" {
-    name = "lambda_iam_policy_attache"
+    name       = "lambda_iam_policy_attache"
     policy_arn = aws_iam_policy.cw_policy.arn
     roles = [
-        aws_iam_role.lambda_role.name
+      aws_iam_role.lambda_role.name
     ]
 }
 
@@ -96,17 +96,17 @@ resource "aws_lambda_function" "talka" {
 
 data "aws_iam_policy_document" "apigateway_assume_policy" {
     statement {
-        effect = "Allow"
-        principals {
-            type = "Service"
-            identifiers = ["apigateway.amazonaws.com"]
-        }
-        actions = ["sts:AssumeRole"]
+      effect = "Allow"
+      principals {
+        type        = "Service"
+        identifiers = ["apigateway.amazonaws.com"]
+      }
+      actions = ["sts:AssumeRole"]
     }
 }
 
 resource "aws_iam_role" "ipagateway_role" {
-  name = "ipagateway_role"
+  name               = "ipagateway_role"
   assume_role_policy = data.aws_iam_policy_document.apigateway_assume_policy.json
 }
 
@@ -115,24 +115,24 @@ resource "aws_api_gateway_rest_api" "api_for_slack" {
 }
 
 resource "aws_api_gateway_method" "api_for_slack_method" {
-    rest_api_id = aws_api_gateway_rest_api.api_for_slack.id
-    resource_id = aws_api_gateway_resource.api_for_slack_resource.id
-    http_method = "ANY"
-    authorization = "NONE"
+    rest_api_id      = aws_api_gateway_rest_api.api_for_slack.id
+    resource_id      = aws_api_gateway_resource.api_for_slack_resource.id
+    http_method      = "ANY"
+    authorization    = "NONE"
     api_key_required = false
 }
 
 resource "aws_api_gateway_resource" "api_for_slack_resource" {
     rest_api_id = aws_api_gateway_rest_api.api_for_slack.id
-    parent_id = aws_api_gateway_rest_api.api_for_slack.root_resource_id
-    path_part = "api_for_slack"
+    parent_id   = aws_api_gateway_rest_api.api_for_slack.root_resource_id
+    path_part   = "api_for_slack"
 }
 
 resource "aws_iam_policy_attachment" "apigateway_policy_attache" {
-    name = "apigateway_policy_attache"
+    name       = "apigateway_policy_attache"
     policy_arn = aws_iam_policy.cw_policy.arn
     roles = [
-        aws_iam_role.ipagateway_role.name
+      aws_iam_role.ipagateway_role.name
     ]
 }
 
